@@ -31,6 +31,27 @@ Or run it without installing, which is what most MCP clients do:
 npx @stonedogcode/howto-mcp
 ```
 
+## Before you configure it
+
+**The portal has to be running and reachable from this machine.** This server is
+a client and holds nothing of its own, so a portal that is down looks exactly
+like a server that is broken.
+
+Check it first, so a later failure has one fewer possible cause:
+
+```bash
+curl -s https://howto.example.com/api/health
+# {"status":"ok", … ,"database":"ok"}
+```
+
+`status: degraded` means the portal is up but its database is not. Fix that
+before going further — search will fail and the error will point here.
+
+**And you need a token.** Your portal issues them; how depends on the portal.
+Whatever the mechanism, the token is shown **once** and stored hashed, so keep
+it when it is printed. See "The token is an identity, not a key" below before
+choosing whose it is.
+
 ## Configure
 
 Two environment variables, both required. The server refuses to start without
@@ -45,11 +66,32 @@ then refuses everything looks like a broken portal.
 ### Claude Code
 
 ```bash
-claude mcp add howto \
+claude mcp add howto --scope user \
   --env HOWTO_PORTAL_URL=https://howto.example.com \
   --env HOWTO_API_TOKEN=… \
   -- npx -y @stonedogcode/howto-mcp
 ```
+
+`--scope user` registers it for **every** project rather than the directory you
+happen to be in. Documentation is not project-specific, and a server registered
+in one checkout is invisible from the next one — which reads as the server
+having stopped working.
+
+Then confirm it, rather than assuming:
+
+```bash
+claude mcp list
+# howto: npx -y @stonedogcode/howto-mcp - ✔ Connected
+```
+
+`✔ Connected` means the server started and answered. It does **not** mean the
+token is good — that is not checked until the first search, by design, because
+the portal is the thing that decides.
+
+**Restart Claude Code** before expecting the tools in a session that was already
+open. Then ask it something:
+
+> What articles exist about authentication?
 
 ### Any client that takes a JSON config
 
@@ -67,6 +109,23 @@ claude mcp add howto \
   }
 }
 ```
+
+### When it does not work
+
+The failures are deliberately hard to tell apart from the outside — that is the
+access model working, not a bad error message — so here is what each one means.
+
+| What you see | What it is |
+| --- | --- |
+| `HOWTO_PORTAL_URL is not set` | The variable did not reach the process. Client configs vary in whether they inherit your shell; set it in the config, not your profile. |
+| `The portal could not be reached.` | Wrong URL, portal down, or a network path that does not exist from here. Try the `curl` above from the same machine. |
+| `The portal did not accept the configured token.` | The token is wrong, revoked, or belongs to a deleted user. Issue a new one; the old value cannot be recovered. |
+| `No articles match "…"` | The search ran and its user may read nothing that matches. This is also what you get when the token's user has no grants at all — see below. |
+| `There are no repositories available to this token.` | The token is valid and its user has been granted nothing. Someone with admin rights on the portal grants repositories. |
+
+The last two are worth reading twice: **a working setup with no access looks
+almost exactly like a working setup with nothing to find.** If `list_repos` is
+empty, the problem is grants, not configuration.
 
 ## The token is an identity, not a key
 
