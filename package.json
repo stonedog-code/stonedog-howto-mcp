@@ -22,11 +22,17 @@
   ],
   "scripts": {
     "build": "tsc",
-    "type-check": "tsc --noEmit",
-    "lint": "eslint .",
-    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "gate": "npm run type-check && npm run lint && npm run test",
-    "prepublishOnly": "npm run build"
+    "lint": "eslint .",
+    "prepublishOnly": "npm run build",
+    "//publish:howto-mcp": "Publish to npm, end to end. Run from a terminal, interactively -- npm prompts for the 2FA one-time password and the login flow needs a browser. It refuses a checkout that is detached, dirty, or behind origin/main, runs the gate and verify:package, reads the tarball, then proves the result by installing from the registry and running it.",
+    "publish:howto-mcp": "bash scripts/publish-package.sh",
+    "test": "NODE_OPTIONS=--experimental-vm-modules jest",
+    "type-check": "tsc --noEmit",
+    "//verify:package": "Pack, install into a temp directory as a consumer, and RUN the installed binary. The running is the point: this ships compiled ESM behind a bin, and tsc accepts extension-less relative imports it does not rewrite on emit -- so a green gate can sit on top of a build Node refuses to start. Nothing else catches that.",
+    "verify:package": "bash scripts/verify-package.sh",
+    "version:bump:minor": "npm version minor --no-git-tag-version",
+    "version:bump:patch": "npm version patch --no-git-tag-version"
   },
   "dependencies": {
     "@modelcontextprotocol/sdk": "^1.0.0",
