@@ -27,6 +27,8 @@
     "prepublishOnly": "npm run build",
     "//publish:howto-mcp": "Publish to npm, end to end. Run from a terminal, interactively -- npm prompts for the 2FA one-time password and the login flow needs a browser. It refuses a checkout that is detached, dirty, or behind origin/main, runs the gate and verify:package, reads the tarball, then proves the result by installing from the registry and running it.",
     "publish:howto-mcp": "bash scripts/publish-package.sh",
+    "//release": "One memorable command per repo. It cannot be called `publish`: that is a reserved npm lifecycle name, so `npm publish` inside scripts/publish-package.sh would fire it and run the whole gate and publish a second time, hitting the already-published guard and reporting a successful release as a failure. Note the target is `publish:howto-mcp`, not `publish:stonedog-howto-mcp` — the odd one out in the fleet, deliberately left unrenamed.",
+    "release": "npm run publish:howto-mcp",
     "test": "NODE_OPTIONS=--experimental-vm-modules jest",
     "type-check": "tsc --noEmit",
     "//verify:package": "Pack, install into a temp directory as a consumer, and RUN the installed binary. The running is the point: this ships compiled ESM behind a bin, and tsc accepts extension-less relative imports it does not rewrite on emit -- so a green gate can sit on top of a build Node refuses to start. Nothing else catches that.",
