@@ -1,0 +1,61 @@
+name: gate
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+jobs:
+  gate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          # 22, matching the sibling repos, rather than the `>=20` in
+          # package.json engines. The floor says what a CONSUMER may run; CI
+          # picks one version and holds it, so a failure is about the change
+          # rather than about which Node the runner happened to hand out.
+          node-version: 22
+          cache: npm
+
+      # `npm ci` rather than `npm install`: it installs exactly the lockfile and
+      # fails if package.json and the lockfile have drifted, which is the one
+      # check a local `npm install` can never perform because it silently fixes
+      # the drift instead of reporting it.
+      - run: npm ci
+      - run: npm run type-check
+
+      # No `--fix` anywhere in CI. A lint step that repairs the tree hides from
+      # review the errors review exists to catch, and leaves the repair
+      # uncommitted so the same error returns on the next checkout.
+      - run: npm run lint
+      - run: npm test
+
+      # Everything above runs against source files in the checkout, where the
+      # `files` array, the `exports` map and the tarball contents are invisible
+      # — and those are exactly what breaks at publish time, after review, when
+      # the version is already burned and cannot be reused. This package ships
+      # compiled ESM behind a bin, and tsc accepts extension-less relative
+      # imports it does not rewrite on emit, so a green gate can sit on top of
+      # a build Node refuses to start. Nothing else catches that.
+      - run: npm run verify:package
+
+      # A green result over an empty set is the failure this guards against.
+      # ESLint exits 0 while reporting "File ignored by default" for anything
+      # under a dot-directory, and a testMatch resolving to no files can exit 0
+      # too. Both read as "clean".
+      #
+      # The floors are deliberately below today's counts (6 files, 17 tests)
+      # rather than equal to them: an exact match turns every added test into a
+      # CI failure, which is how a guard gets deleted. What must be caught is a
+      # COLLAPSE — a config change that quietly stops examining anything.
+      - name: Prove the gate was not vacuous
+        run: |
+          linted=$(npx eslint . -f json | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).length))')
+          echo "eslint examined $linted files"
+          test "$linted" -ge 5
+
+          tests=$(NODE_OPTIONS=--experimental-vm-modules npx jest --json --silent | node -e 'let s="";process.stdin.on("data",d=>s+=d).on("end",()=>console.log(JSON.parse(s).numTotalTests))')
+          echo "jest collected $tests tests"
+          test "$tests" -ge 10
