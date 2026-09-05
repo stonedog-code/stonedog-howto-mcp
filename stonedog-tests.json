@@ -1,0 +1,10 @@
+{
+  "schemaVersion": 1,
+  "project": "stonedog-howto-mcp",
+  "//thin": "One suite. That is the measurement, not a glob that missed something — see NEH-1425, which is about this repo having no CI at all.",
+  "tiers": {
+    "unit": {
+      "include": ["src/__tests__/**/*.test.ts"]
+    }
+  }
+}
